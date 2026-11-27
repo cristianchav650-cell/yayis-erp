@@ -334,7 +334,7 @@ with st.sidebar:
 if st.session_state.pagina == "Inicio":
     st.markdown(f"""
     <div class="hero-modern">
-        <div class="hero-pill">● Sistema Integrado de Gestión · {meta_acad['archivo_activo']}</div>
+        <div class="hero-pill">● Sistema Integrado de Gestión · {meta_acad.get('archivo_activo', 'Archivo no identificado')}</div>
         <h1>YAYI'S ERP — {empresa['nombre_comercial'].upper()}</h1>
         <p>Plataforma centralizada para la gestión comercial (CRM/NPS), planificación maestra de la producción (PAP, PMP, MRP I/II, DRP), control de inventarios y abastecimiento.</p>
     </div>
