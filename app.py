@@ -947,8 +947,8 @@ elif st.session_state.pagina == "3. Producción (PAP, PMP, MRP, DRP)":
             c_k1, c_k2, c_k3, c_k4 = st.columns(4)
             c_k1.metric(
                 "Cuello de Botella (Pico CRP)",
-                f"{pico_row['Utilización (%)']:.1f}%",
-                delta=f"{pico_row['Código']} {pico_row['Recurso']} ({pico_row['Semana']})"
+                f"{pico_row.get('Utilización (%)', 0):.1f}%",
+                delta=f"{pico_row.get('Código', 'N/D')} {pico_row.get('Recurso', 'N/D')} ({pico_row.get('Semana', 'N/D')})"
             )
             c_k2.metric(
                 "Utilización Media Planta (S1–S8)",
