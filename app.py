@@ -942,7 +942,7 @@ elif st.session_state.pagina == "3. Producción (PAP, PMP, MRP, DRP)":
             total_req_h = crp_prod["Horas Requeridas"].sum()
             total_disp_h = crp_prod["Horas Disponibles"].sum()
             util_prom_planta = (total_req_h / total_disp_h * 100) if total_disp_h > 0 else 0
-            holgura_min_h = crp_prod["Holgura (h)"].min()
+            holgura_min_h = crp_prod["Holgura (h)"].min() if "Holgura (h)" in crp_prod.columns and not crp_prod.empty else 0.0
 
             c_k1, c_k2, c_k3, c_k4 = st.columns(4)
             c_k1.metric(
