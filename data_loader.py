@@ -3,15 +3,16 @@ from datetime import datetime
 import pandas as pd
 import openpyxl
 
-EXCEL_FILENAME = "gesop grupo 1 .xlsx"
+EXCEL_CANDIDATES = ["gesop grupo1 corregido.xlsx", "gesop grupo 1 .xlsx"]
 
 def get_excel_path():
-    if os.path.exists(EXCEL_FILENAME):
-        return EXCEL_FILENAME
+    for candidate in EXCEL_CANDIDATES:
+        if os.path.exists(candidate):
+            return candidate
     for f in os.listdir("."):
         if f.endswith(".xlsx") and not f.startswith("~$"):
             return f
-    raise FileNotFoundError(f"No se encontró el archivo '{EXCEL_FILENAME}' en la carpeta.")
+    raise FileNotFoundError("No se encontró ningún archivo Excel (.xlsx) en la carpeta del proyecto.")
 
 def find_sheet(xls_or_names, target_name):
     names = xls_or_names.sheet_names if hasattr(xls_or_names, "sheet_names") else xls_or_names
@@ -47,6 +48,7 @@ def load_company_info():
         "docente": str(df_portada.iloc[12, 1]).strip(),
         "integrantes": integrantes,
         "anio": str(df_portada.iloc[25, 1]).strip(),
+        "archivo_activo": os.path.basename(path),
     }
 
     df_pres = pd.read_excel(xls, sheet_name=find_sheet(xls, "Presentacion"), header=None)
@@ -224,7 +226,6 @@ def load_forecast_data():
     xls = pd.ExcelFile(path)
     df = pd.read_excel(xls, sheet_name=find_sheet(xls, "Demanda y Pronósticos"), header=None)
 
-    # Histórico (filas 5..22)
     hist_cols = [
         "Mes", "Periodo (t)", "Pan Ciabatta (lotes)", "Pan Integral (lotes)",
         "Total (lotes)", "Pan Ciabatta (und)", "Pan Integral (und)", "Total (und)"
@@ -235,7 +236,6 @@ def load_forecast_data():
     for c in hist_cols[1:]:
         df_hist[c] = pd.to_numeric(df_hist[c], errors="coerce").fillna(0).astype(int)
 
-    # Pronóstico consolidado (filas 228..239)
     pron_cols = [
         "Mes", "Pan Ciabatta (lotes)", "Pan Integral (lotes)",
         "Total (lotes)", "Pan Ciabatta (und)", "Pan Integral (und)", "Total (und)"
@@ -246,7 +246,6 @@ def load_forecast_data():
     for c in pron_cols[1:]:
         df_pron[c] = pd.to_numeric(df_pron[c], errors="coerce").fillna(0).astype(int)
 
-    # Métricas de métodos ganadores (filas 245..246)
     df_metodos = df.iloc[245:247, 1:6].copy()
     df_metodos.columns = ["Producto", "Método Seleccionado", "DAM (MAD)", "EPAM (MAPE)", "Señal de Rastreo"]
     df_metodos["DAM (MAD)"] = pd.to_numeric(df_metodos["DAM (MAD)"], errors="coerce").round(3)
@@ -260,7 +259,6 @@ def load_pap_data():
     xls = pd.ExcelFile(path)
     df = pd.read_excel(xls, sheet_name=find_sheet(xls, "Plan Agregado"), header=None)
 
-    # Tabla resumen de los 4 planes (filas 100..108, cols 1..5)
     df_resumen = df.iloc[100:109, 1:6].copy()
     df_resumen.columns = [
         "Rubro de Costo / Recurso",
@@ -274,7 +272,6 @@ def load_pap_data():
 
     plan_elegido = str(df.iloc[110, 2]).strip()
 
-    # Desagregación mensual del plan elegido (filas 115..120, cols 1..14)
     meses_hdr = ["Concepto"] + [fmt_mes(df.iloc[115, c]) for c in range(2, 14)] + ["Total Anual"]
     df_desag = df.iloc[116:121, 1:15].copy()
     df_desag.columns = meses_hdr
@@ -289,17 +286,17 @@ def load_pmp_data():
     df = pd.read_excel(xls, sheet_name=find_sheet(xls, "PMP"), header=None)
 
     meses_bloque = [
-        ("Julio 2026", [1, 2, 3, 4], ["Sem 1", "Sem 2", "Sem 3", "Sem 4"], 5),
-        ("Agosto 2026", [6, 7, 8, 9], ["Sem 5", "Sem 6", "Sem 7", "Sem 8"], 10),
-        ("Septiembre 2026", [11, 12, 13, 14], ["Sem 9", "Sem 10", "Sem 11", "Sem 12"], 15),
-        ("Octubre 2026", [16, 17, 18, 19], ["Sem 13", "Sem 14", "Sem 15", "Sem 16"], 20),
-        ("Noviembre 2026", [21, 22, 23, 24], ["Sem 17", "Sem 18", "Sem 19", "Sem 20"], 25),
-        ("Diciembre 2026", [26, 27, 28, 29], ["Sem 21", "Sem 22", "Sem 23", "Sem 24"], 30),
+        ("Julio 2026", [1, 2, 3, 4], ["Sem 1", "Sem 2", "Sem 3", "Sem 4"]),
+        ("Agosto 2026", [6, 7, 8, 9], ["Sem 5", "Sem 6", "Sem 7", "Sem 8"]),
+        ("Septiembre 2026", [11, 12, 13, 14], ["Sem 9", "Sem 10", "Sem 11", "Sem 12"]),
+        ("Octubre 2026", [16, 17, 18, 19], ["Sem 13", "Sem 14", "Sem 15", "Sem 16"]),
+        ("Noviembre 2026", [21, 22, 23, 24], ["Sem 17", "Sem 18", "Sem 19", "Sem 20"]),
+        ("Diciembre 2026", [26, 27, 28, 29], ["Sem 21", "Sem 22", "Sem 23", "Sem 24"]),
     ]
 
     def parse_pmp_product(row_start):
         registros = []
-        for mes_nombre, cols_sem, nombres_sem, col_tot in meses_bloque:
+        for mes_nombre, cols_sem, nombres_sem in meses_bloque:
             for c_idx, sem_lbl in zip(cols_sem, nombres_sem):
                 registros.append({
                     "Mes": mes_nombre,
@@ -313,9 +310,7 @@ def load_pmp_data():
                 })
         return pd.DataFrame(registros)
 
-    df_pmp_ciabatta = parse_pmp_product(8)
-    df_pmp_integral = parse_pmp_product(21)
-    return df_pmp_ciabatta, df_pmp_integral
+    return parse_pmp_product(8), parse_pmp_product(21)
 
 def load_bom_data():
     path = get_excel_path()
@@ -334,20 +329,30 @@ def load_bom_data():
     for c in cols[3:12]:
         df_bom[c] = df_bom[c].fillna("—")
     return df_bom.reset_index(drop=True)
+def to_float_safe(valor, default=0.0):
+    if isinstance(valor, pd.Series):
+        return pd.to_numeric(valor, errors="coerce").fillna(default)
 
+    try:
+        if pd.isna(valor):
+            return default
+        return float(valor)
+    except (ValueError, TypeError):
+        return default
+    
 def load_mrp_data():
     path = get_excel_path()
     xls = pd.ExcelFile(path)
     df = pd.read_excel(xls, sheet_name=find_sheet(xls, "MRP 2"), header=None)
 
-    # 1. Tabla de Lanzamiento de Órdenes (TLO) - filas 5..14, cols 1..12
+    # 1. Tabla de Lanzamiento de Órdenes (TLO)
     tlo_cols = ["Material / Ítem", "Sem 0", "Sem 1", "Sem 2", "Sem 3", "Sem 4", "Sem 5", "Sem 6", "Sem 7", "Sem 8", "Total (9 sem)", "Unidad"]
     df_tlo = df.iloc[5:15, 1:13].copy()
     df_tlo.columns = tlo_cols
     for c in tlo_cols[1:11]:
         df_tlo[c] = pd.to_numeric(df_tlo[c], errors="coerce").fillna(0)
 
-    # 2. Tabla de Capacidades (BOC) - filas 5..14, cols 16..24
+    # 2. Tabla de Capacidades (BOC)
     boc_cols = [
         "Producto / Componente",
         "CT-01 Hombre (min)", "CT-01 Equipo (min)",
@@ -360,7 +365,7 @@ def load_mrp_data():
     for c in boc_cols[1:]:
         df_boc[c] = pd.to_numeric(df_boc[c], errors="coerce").fillna(0.0)
 
-    # 3. Lista de puestos de trabajo - filas 34..37, cols 1..13
+    # 3. Lista de puestos de trabajo
     puestos_cols = [
         "Código", "Puesto de Trabajo", "Actividades", "N° Operarios",
         "Equipos / Máquinas", "N° Máquinas", "Capacidad (h/turno)",
@@ -370,47 +375,62 @@ def load_mrp_data():
     df_puestos = df.iloc[34:38, 1:14].copy()
     df_puestos.columns = puestos_cols
 
-    # 4. Hoja de ruta - filas 50..73, cols 1..9
+    # 4. Hoja de ruta completa
     ruta_cols = [
         "N°", "Actividad", "Componente", "Estación", "Descripción Estación",
         "Producto", "T. Operario (min/und)", "T. Máquina (min/und)", "Base"
     ]
-    df_ruta = df.iloc[50:74, 1:10].copy()
-    df_ruta.columns = ruta_cols
+    df_ruta_fab = df.iloc[50:74, 1:10].copy()
+    df_ruta_fab.columns = ruta_cols
+
+    if len(df) >= 91:
+        df_ruta_ins = df.iloc[82:91, 1:10].copy()
+        df_ruta_ins.columns = ruta_cols
+        df_ruta = pd.concat([df_ruta_fab, df_ruta_ins], ignore_index=True)
+    else:
+        df_ruta = df_ruta_fab.reset_index(drop=True)
+
     df_ruta["N°"] = pd.to_numeric(df_ruta["N°"], errors="coerce").fillna(0).astype(int)
     df_ruta["T. Operario (min/und)"] = pd.to_numeric(df_ruta["T. Operario (min/und)"], errors="coerce").fillna(0.0)
     df_ruta["T. Máquina (min/und)"] = pd.to_numeric(df_ruta["T. Máquina (min/und)"], errors="coerce").fillna(0.0)
 
-    # 5. CRP (Necesidades de Capacidad) - extraer horas requeridas y estado por semana (Sem 00 a Sem 08)
+    # 5. CRP Detallado (Necesidades de Capacidad por Estación, Recurso y Semana)
     crp_rows = []
     sem_indices = [
         ("Sem 0", 25), ("Sem 1", 28), ("Sem 2", 31), ("Sem 3", 34),
         ("Sem 4", 37), ("Sem 5", 40), ("Sem 6", 43), ("Sem 7", 46), ("Sem 8", 49)
     ]
     estaciones_map = [
-        ("CT-01 Preparación (Hombre)", 17, 48.0),
-        ("CT-01 Preparación (Equipo)", 18, 96.0),
-        ("CT-02 Fermentación (Equipo)", 20, 96.0),
-        ("CT-03 Formado (Hombre)", 21, 48.0),
-        ("CT-04 Horneado/Empaque (Hombre)", 23, 48.0),
-        ("CT-04 Horneado/Empaque (Equipo)", 24, 48.0),
+        ("CT-01", "Preparación de masa y división", "Hombre", 18, 48.0),
+        ("CT-01", "Preparación de masa y división", "Equipo", 19, 96.0),
+        ("CT-02", "Fermentación controlada", "Equipo", 21, 96.0),
+        ("CT-03", "Formado y acabado", "Hombre", 22, 48.0),
+        ("CT-04", "Horneado y empaque", "Hombre", 24, 48.0),
+        ("CT-04", "Horneado y empaque", "Equipo", 25, 48.0),
     ]
     for sem_lbl, r_base in sem_indices:
-        for est_lbl, col_i, disp_h in estaciones_map:
-            valor_req_h = df.iloc[r_base + 1, col_i]
-
-            req_h = pd.to_numeric(valor_req_h, errors="coerce")
-
-            if pd.isna(req_h):
-                req_h = 0.0
+        for cod_est, nom_est, tipo_rec, col_i, disp_h in estaciones_map:
+            req_min = float(df.iloc[r_base, col_i] or 0.0)
+            req_h = float(df.iloc[r_base + 1, col_i] or 0.0)
             ok = str(df.iloc[r_base + 2, col_i]).strip()
+            holgura_h = disp_h - req_h
             util_pct = (req_h / disp_h * 100) if disp_h > 0 else 0.0
+            estado_carga = (
+                "🟢 Carga Alta (>75%)" if util_pct >= 75
+                else ("🟡 Carga Media (40-75%)" if util_pct >= 40 else "🔵 Carga Baja / Alistamiento")
+            )
             crp_rows.append({
                 "Semana": sem_lbl,
-                "Centro / Recurso": est_lbl,
+                "Código": cod_est,
+                "Estación": nom_est,
+                "Recurso": tipo_rec,
+                "Centro / Recurso": f"{cod_est} {nom_est} ({tipo_rec})",
+                "Req. Minutos": round(req_min, 2),
                 "Horas Requeridas": round(req_h, 2),
                 "Horas Disponibles": disp_h,
+                "Holgura (h)": round(holgura_h, 2),
                 "Utilización (%)": round(util_pct, 1),
+                "Nivel de Carga": estado_carga,
                 "¿Hay Capacidad?": ok
             })
     df_crp = pd.DataFrame(crp_rows)
@@ -427,20 +447,20 @@ def load_drp_data():
         resumen_envios = pd.DataFrame({
             "Semana": ["Semana 1", "Semana 2", "Semana 3", "Semana 4", "Total Mes"],
             "Café Yayi's (CAF) - Demanda (und)": [
-                int(df.iloc[19, 12]), int(df.iloc[19, 13]), int(df.iloc[19, 14]), int(df.iloc[19, 15]),
-                sum(int(df.iloc[19, c]) for c in range(12, 16))
+                int(to_float_safe(df.iloc[19, 12], default=0)), int(to_float_safe(df.iloc[19, 13], default=0)), int(to_float_safe(df.iloc[19, 14], default=0)), int(to_float_safe(df.iloc[19, 15], default=0)),
+                sum(int(to_float_safe(df.iloc[19, c], default=0)) for c in range(12, 16))
             ],
             "Café Yayi's (CAF) - Envíos Planificados (und)": [
-                int(df.iloc[25, 12]), int(df.iloc[25, 13]), int(df.iloc[25, 14]), int(df.iloc[25, 15]),
-                sum(int(df.iloc[25, c]) for c in range(12, 16))
+                int(to_float_safe(df.iloc[25, 12], default=0)), int(to_float_safe(df.iloc[25, 13], default=0)), int(to_float_safe(df.iloc[25, 14], default=0)), int(to_float_safe(df.iloc[25, 15], default=0)),
+                sum(int(to_float_safe(df.iloc[25, c], default=0)) for c in range(12, 16))
             ],
             "Delivery & Corp (DLV) - Demanda (und)": [
-                int(df.iloc[19, 25]), int(df.iloc[19, 26]), int(df.iloc[19, 27]), int(df.iloc[19, 28]),
-                sum(int(df.iloc[19, c]) for c in range(25, 29))
+                int(to_float_safe(df.iloc[19, 25], default=0)), int(to_float_safe(df.iloc[19, 26], default=0)), int(to_float_safe(df.iloc[19, 27], default=0)), int(to_float_safe(df.iloc[19, 28], default=0)),
+                sum(int(to_float_safe(df.iloc[19, c], default=0)) for c in range(25, 29))
             ],
             "Delivery & Corp (DLV) - Envíos Planificados (und)": [
-                int(df.iloc[25, 25]), int(df.iloc[25, 26]), int(df.iloc[25, 27]), int(df.iloc[25, 28]),
-                sum(int(df.iloc[25, c]) for c in range(25, 29))
+                int(to_float_safe(df.iloc[25, 25], default=0)), int(to_float_safe(df.iloc[25, 26], default=0)), int(to_float_safe(df.iloc[25, 27], default=0)), int(to_float_safe(df.iloc[25, 28], default=0)),
+                sum(int(to_float_safe(df.iloc[25, c], default=0)) for c in range(25, 29))
             ],
         })
         resumen_envios["Total Envíos Planta → CD → Canales (und)"] = (
@@ -448,73 +468,22 @@ def load_drp_data():
             resumen_envios["Delivery & Corp (DLV) - Envíos Planificados (und)"]
         )
 
-        # Matrices detalladas CAF y DLV (filas 19..26)
         conceptos = [str(df.iloc[r, 10]).strip() for r in range(19, 27)]
         df_caf_det = pd.DataFrame({
             "Concepto DRP": conceptos,
-            "Sem 0": [
-    int(pd.to_numeric(df.iloc[r, 11], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 11], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 1": [
-    int(pd.to_numeric(df.iloc[r, 12], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 12], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 2": [
-    int(pd.to_numeric(df.iloc[r, 13], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 13], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 3": [
-    int(pd.to_numeric(df.iloc[r, 14], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 14], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 4": [
-    int(pd.to_numeric(df.iloc[r, 15], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 15], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
+            "Sem 0": [int(to_float_safe(df.iloc[r, 11], default=0)) for r in range(19, 27)],
+            "Sem 1": [int(to_float_safe(df.iloc[r, 12], default=0)) for r in range(19, 27)],
+            "Sem 2": [int(to_float_safe(df.iloc[r, 13], default=0)) for r in range(19, 27)],
+            "Sem 3": [int(to_float_safe(df.iloc[r, 14], default=0)) for r in range(19, 27)],
+            "Sem 4": [int(to_float_safe(df.iloc[r, 15], default=0)) for r in range(19, 27)],
         })
         df_dlv_det = pd.DataFrame({
             "Concepto DRP": conceptos,
-            "Sem 0": [
-    int(pd.to_numeric(df.iloc[r, 24], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 24], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 1": [
-    int(pd.to_numeric(df.iloc[r, 25], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 25], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 2": [
-    int(pd.to_numeric(df.iloc[r, 26], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 26], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 3": [
-    int(pd.to_numeric(df.iloc[r, 27], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 27], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
-            "Sem 4": [
-    int(pd.to_numeric(df.iloc[r, 28], errors="coerce") or 0)
-    if pd.notna(pd.to_numeric(df.iloc[r, 28], errors="coerce"))
-    else 0
-    for r in range(19, 27)
-],
+            "Sem 0": [int(to_float_safe(df.iloc[r, 24], default=0)) for r in range(19, 27)],
+            "Sem 1": [int(to_float_safe(df.iloc[r, 25], default=0)) for r in range(19, 27)],
+            "Sem 2": [int(to_float_safe(df.iloc[r, 26], default=0)) for r in range(19, 27)],
+            "Sem 3": [int(to_float_safe(df.iloc[r, 27], default=0)) for r in range(19, 27)],
+            "Sem 4": [int(to_float_safe(df.iloc[r, 28], default=0)) for r in range(19, 27)],
         })
         return {"mes": mes_plan, "resumen": resumen_envios, "caf": df_caf_det, "dlv": df_dlv_det}
 
@@ -595,7 +564,7 @@ def add_new_material(codigo, descripcion, tipo, unidad, nivel_llc, inv_disp, sto
     return codigo.strip().upper()
 
 # ==============================================================================
-# MÓDULO 5: COMPRAS Y PROVEEDORES
+# MÓDULO 5: COMPRAS Y PROVEEDORES (INCLUYE OC- Y OS-)
 # ==============================================================================
 def load_purchasing_data():
     path = get_excel_path()
@@ -607,7 +576,7 @@ def load_purchasing_data():
     df_oc.columns = headers_oc
     df_oc = df_oc[df_oc["N° de orden"].notna()].copy()
     df_oc["N° de orden"] = df_oc["N° de orden"].astype(str).str.strip()
-    df_oc = df_oc[df_oc["N° de orden"].str.startswith("OC-")].reset_index(drop=True)
+    df_oc = df_oc[df_oc["N° de orden"].str.startswith(("OC-", "OS-"))].reset_index(drop=True)
 
     df_oc["Fecha de emisión"] = pd.to_datetime(df_oc["Fecha de emisión"], errors="coerce").dt.strftime("%Y-%m-%d").fillna("—")
     df_oc["Cantidad"] = pd.to_numeric(df_oc["Cantidad"], errors="coerce").fillna(0)
