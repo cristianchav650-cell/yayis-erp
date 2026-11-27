@@ -1333,7 +1333,10 @@ elif st.session_state.pagina == "6. Dashboard Ejecutivo":
 
     demanda_anual_pron = int(df_pron["Total (und)"].sum())
     costo_pap_optimo = float(df_pap_res[df_pap_res["Rubro de Costo / Recurso"].str.contains("Costo Total", case=False)].iloc[0, 1])
-
+    st.write("DIAGNÓSTICO DE COLUMNAS CRP:")
+    st.write(df_crp.columns.tolist())
+    st.write("Primeros registros CRP:")
+    st.dataframe(df_crp.head())
     crp_prod = df_crp[df_crp["Semana"] != "Sem 0"]
     pico_crp_row = crp_prod.loc[crp_prod["Utilización (%)"].idxmax()]
     util_media_crp = (crp_prod["Horas Requeridas"].sum() / crp_prod["Horas Disponibles"].sum() * 100)
